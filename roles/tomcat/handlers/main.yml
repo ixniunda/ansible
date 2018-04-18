@@ -1,0 +1,125 @@
+---
+# handlers file for roles/tomcat/
+
+  - name: Download Tomcat
+    get_url:
+     url: "http://archive.apache.org/dist/tomcat/tomcat-8/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
+     dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+    ignore_errors: yes
+
+  - name: Create tomcat folder
+    file:
+     path: "{{ tomcat_home }}{{ tomcat_version }}"
+     state: directory
+     owner: '{{ user_name }}'
+     group: '{{ user_name }}'
+     mode: 0755
+    become: yes
+    become_method: sudo
+
+  - name: Extract Tomcat
+    unarchive:
+        src: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+
+  - name: Check old directory
+    stat:
+     path: "{{ tomcat_home }}{{ tomcat_version }}"
+    register: p
+
+  - name: Remove old directory
+    when: p.stat.exists == true
+    file:
+     path: "{{ tomcat_home }}{{ tomcat_version }}/"
+     state: absent
+    become: yes
+    become_method: sudo
+
+  - name: Move tomcat
+    become: yes
+    shell: "mv /tmp/apache-tomcat-{{ tomcat_version }} {{ tomcat_home }}{{ tomcat_version }}"
+    become_method: sudo  
+
+  - name: Make tomcat owner
+    file:
+        path: "{{ tomcat_home }}{{ tomcat_version }}"
+        state: directory
+        owner: '{{ user_name }}'
+        group: '{{ user_name }}'
+        recurse: yes
+    become: yes
+    become_method: sudo
+
+  - name: Tomcat conf
+    shell: |
+      echo 'description "Tomcat Server"
+
+      start on runlevel [2345]
+      stop on runlevel [!2345]
+      respawn   
+      respawn limit 10 5
+
+      setuid {{ user_name }}
+      setgid {{ user_name }}
+
+      env JAVA_HOME=/usr/lib/jvm/java-{{ java_version }}-oracle/jre
+      env CATALINA_HOME={{ tomcat_home }}{{ tomcat_version }}
+
+      # Modify these options as needed
+      env JAVA_OPTS="-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
+      # env CATALINA_OPTS="-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+
+      exec $CATALINA_HOME/bin/catalina.sh run
+      # startup.sh
+
+      # cleanup temp directory after stop
+      post-stop script
+         rm -rf $CATALINA_HOME/temp/*
+      end script' > /etc/init/tomcat.conf
+    args:
+        executable: /bin/bash
+    become: yes
+    become_method: sudo
+
+  - name: Tomcat as a service
+    shell: |
+      echo '#!/bin/bash
+      export CATALINA_HOME={{ tomcat_home }}{{tomcat_version}}
+      PATH=/sbin:/bin:/usr/sbin:/usr/bin
+      start() {
+      sh $CATALINA_HOME/bin/startup.sh
+      }
+      stop() {
+      sh $CATALINA_HOME/bin/shutdown.sh
+      }
+      case $1 in
+      start|stop) $1;;
+      restart) stop; start;;
+      *) echo "Run as $0 <start|stop|restart>"; exit 1;;
+      esac' > /etc/init.d/tomcat
+    args:
+        executable: /bin/bash
+    become: yes
+    become_method: sudo
+
+  - name: Tomcat.service chmod
+    file:
+        path: /etc/init.d/tomcat
+        mode: 0755
+    become: yes
+    become_method: sudo
+
+  - name: Reload systemd
+    shell:
+        initctl reload-configuration
+    become: yes
+    become_method: sudo
+
+  - name: Start Tomcat service
+    become: yes
+    service: name=tomcat state=started enabled=yes
+    become_method: sudo
+
+  - name: Wait
+    wait_for: port='{{ http_port }}'

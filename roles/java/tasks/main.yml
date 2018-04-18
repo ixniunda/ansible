@@ -1,0 +1,52 @@
+---
+# tasks file for roles/java/
+  - name: Check Java
+    stat:
+     path: /usr/bin/java
+    register: p
+
+  - name: Java version
+    when: p.stat.exists == true
+    command: java -version
+    register: myjava
+    ignore_errors: yes
+
+  - name: Java repo
+    when: p.stat.exists == false
+    apt_repository:
+        repo: 'ppa:webupd8team/java'
+        codename: 'trusty'
+    become: yes
+    become_method: sudo
+
+  - name: accept java license
+    when: p.stat.exists == false
+    debconf: name="oracle-java{{ java_version }}-installer" question='shared/accepted-oracle-license-v1-1' value='true' vtype='select'
+    become: yes
+    become_method: sudo
+    register: license_accept
+
+#  - name: Install java
+#    apt:
+#     name: "oracle-java{{ java_version }}-set-default"
+#     state: present
+#    register: java_installed
+#    become: yes
+#    become_method: sudo
+
+  - name: apt-get update
+ #   when: java_installed is failed
+    apt:
+        update_cache: yes
+    become: yes
+    become_method: sudo
+ 
+  - name: install oracle java
+#    when: java_installed is failed
+    apt: name={{item}} state=latest
+    with_items:
+        - "oracle-java{{ java_version }}-installer"
+        - ca-certificates
+        - "oracle-java{{ java_version }}-set-default"
+    become: yes
+    become_method: sudo

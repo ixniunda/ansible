@@ -1,0 +1,19 @@
+---
+# tasks file for roles/tomcat_test/
+- name: check tomcat
+  stat:
+    path: "{{ tomcat_home }}{{ tomcat_version }}"
+  register: p
+
+- name: check tomcat version
+  when: p.stat.exists == true
+  command:  "sh {{ tomcat_home }}{{tomcat_version }}/bin/version.sh"
+  register: tomcat_v
+  ignore_errors: yes
+
+- debug:
+    msg:
+    - '{{ p.stat.path }}'
+    - '{{ tomcat_v.stdout_lines }}'
+  when: p.stat.exists == true
+

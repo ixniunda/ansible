@@ -1,0 +1,7 @@
+---
+# vars file for roles/tomcat/
+user_name: tomcat
+tomcat_version: 8.0.49
+tomcat_home: /opt/tomcat/
+http_port: 8080
+java_version: 8

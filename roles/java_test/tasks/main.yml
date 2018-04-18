@@ -1,0 +1,29 @@
+---
+# tasks file for roles/java_test/
+- name: check java
+  stat:
+    path: /usr/bin/java
+  register: p
+
+- name: check java version
+  when: p.stat.exists == true
+  command: java -version
+  register: myjava
+  ignore_errors: yes
+
+- debug:
+    msg:
+    - '{{ p.stat.path }}'
+    - '{{ myjava.stderr }}'
+  when: java_version.stderr is defined
+
+- name: Verify java
+  apt:
+    name: "oracle-java{{ java_version }}-set-default"
+    state: present
+  register: java_installed
+  ignore_errors: yes
+
+- debug:
+    msg:
+    - '{{ java_installed }}'

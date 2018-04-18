@@ -1,0 +1,43 @@
+---
+- hosts: all
+  pre_tasks:
+    - debug: 
+        var: test
+  vars:
+    option: started
+    hostname: fedora26
+
+  tasks:
+
+    - name: debug
+      debug:
+        msg: "Runned with option: {{option}}"
+
+    - vagrant:
+        path: Vagrantfile
+        state: '{{option}}'
+      register: variables
+
+    - name: get vars
+      debug:
+        msg: '{{variables}}'
+
+    - add_host:
+        name: '{{hostname}}'
+        ansible_host: '{{variables.ip}}'
+        ansible_port: '{{variables.port}}'
+        ansible_user: '{{variables.user}}'
+        ansible_connection: 'ssh'
+        ansible_ssh_private_key_file: '{{variables.key}}'
+      when: variables.status == "running"
+
+- hosts: fedora26
+  roles:
+    - { role: java_test, when: test == 'yes' }
+    - { role: tomcat_test, when: test == 'yes' }
+    - { role: nginx_test, when: test == 'yes' }
+
+    - { role: java, when: test == 'no' }
+    - { role: tomcat, when: test == 'no' }
+    - { role: nginx, when: test == 'no' }
+

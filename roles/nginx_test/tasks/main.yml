@@ -1,0 +1,19 @@
+---
+# tasks file for roles/nginx_test/
+- name: check nginx
+  stat:
+    path: /usr/sbin/nginx
+  register: p
+
+- name: check nginx version
+  when: p.stat.exists == true
+  command: nginx -v
+  register: mynginx
+  ignore_errors: yes
+
+- debug:
+    msg:
+    - '{{ p.stat.path }}'
+    - '{{ mynginx.stderr }}'
+  when: p.stat.exists == true
+

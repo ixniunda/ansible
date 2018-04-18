@@ -1,0 +1,57 @@
+---
+# tasks file for roles/tomcat/
+  - name: Create tomcat group
+    group: 
+     name: '{{ user_name }}'
+     state: present
+    become: yes
+    become_method: sudo
+
+  - name: Create tomcat user   
+    user:
+     name: '{{ user_name }}'
+     group: '{{ user_name }}'
+     state: present
+    become: yes
+    become_method: sudo
+
+  - name: Tomcat archive exists?
+    stat:
+        path: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+    register: p
+
+  - name: Tomcat archive non exists
+    when: p.stat.exists == false
+    command: echo
+    notify:
+    - Download Tomcat
+    - Create tomcat folder
+    - Extract Tomcat
+    - Check old directory
+    - Remove old directory
+    - Move tomcat
+    - Make tomcat owner
+    - Tomcat conf
+    - Tomcat as a service
+    - Tomcat.service chmod
+    - Reload systemd
+    - Start Tomcat service
+    - Wait
+
+  - name: Tomcat archive exists
+    when: p.stat.exists == true
+    command: echo
+    notify:
+    - Create tomcat folder
+    - Extract Tomcat
+    - Check old directory
+    - Remove old directory
+    - Move tomcat
+    - Make tomcat owner
+    - Tomcat conf
+    - Tomcat as a service
+    - Tomcat.service chmod
+    - Reload systemd
+    - Start Tomcat service
+    - Wait
+
